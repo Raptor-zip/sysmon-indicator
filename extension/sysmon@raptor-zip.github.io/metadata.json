@@ -1,0 +1,8 @@
+{
+  "uuid": "sysmon@raptor-zip.github.io",
+  "name": "Sysmon",
+  "description": "A compressed btop in the GNOME top bar: CPU (overall and per core), memory, swap, disk and network I/O, temperatures, GPU, and the top processes.",
+  "shell-version": ["42"],
+  "version": 1,
+  "url": "https://github.com/Raptor-zip/sysmon-indicator"
+}

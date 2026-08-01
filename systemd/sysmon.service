@@ -1,0 +1,14 @@
+[Unit]
+Description=Sample system metrics for the Sysmon GNOME indicator
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/sysmon-collect --interval 2
+Restart=always
+RestartSec=5
+# 監視のために監視対象を圧迫しないよう、CPU も I/O も後回しでいい
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,194 @@
+/* パネル ------------------------------------------------------------ */
+
+.sysmon-panel {
+    spacing: 6px;
+    padding: 0 6px;
+}
+
+.sysmon-panel-label {
+    /* 数字の幅を揃えて、値が変わるたびにパネルが伸び縮みしないようにする */
+    font-feature-settings: "tnum";
+}
+
+.sysmon-panel-spark {
+    font-family: monospace;
+    font-size: 0.9em;
+    letter-spacing: -1px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.sysmon-panel-label.sysmon-warn {
+    color: #f5c211;
+}
+
+.sysmon-panel-label.sysmon-crit {
+    color: #ff7b63;
+    font-weight: bold;
+}
+
+.sysmon-panel-label.sysmon-stale,
+.sysmon-panel-spark.sysmon-stale {
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: normal;
+}
+
+/* メーター行 --------------------------------------------------------- */
+
+.sysmon-row {
+    spacing: 4px;
+    min-width: 300px;
+}
+
+.sysmon-row-title {
+    font-weight: bold;
+    max-width: 230px;
+}
+
+.sysmon-row-value {
+    font-feature-settings: "tnum";
+}
+
+.sysmon-row-value.sysmon-warn {
+    color: #f5c211;
+}
+
+.sysmon-row-value.sysmon-crit {
+    color: #ff7b63;
+    font-weight: bold;
+}
+
+.sysmon-row-sub {
+    font-size: 0.85em;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 300px;
+}
+
+.sysmon-bar-track {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    height: 8px;
+    width: 300px;
+}
+
+.sysmon-bar-fill {
+    background-color: #62a0ea;
+    border-radius: 4px;
+    height: 8px;
+}
+
+.sysmon-bar-fill.sysmon-warn {
+    background-color: #f5c211;
+}
+
+.sysmon-bar-fill.sysmon-crit {
+    background-color: #ff7b63;
+}
+
+/* コア別メーター ----------------------------------------------------- */
+
+.sysmon-cores {
+    spacing: 2px;
+    padding: 2px 0;
+}
+
+.sysmon-core-track {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    height: 26px;
+}
+
+.sysmon-core-fill {
+    background-color: #62a0ea;
+    border-radius: 2px;
+}
+
+.sysmon-core-fill.sysmon-warn {
+    background-color: #f5c211;
+}
+
+.sysmon-core-fill.sysmon-crit {
+    background-color: #ff7b63;
+}
+
+/* 補足情報の並び ----------------------------------------------------- */
+
+.sysmon-info {
+    spacing: 10px;
+    min-width: 300px;
+}
+
+.sysmon-info-key {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.sysmon-info-value {
+    font-size: 0.9em;
+    font-feature-settings: "tnum";
+}
+
+/* プロセス欄 --------------------------------------------------------- */
+
+.sysmon-proc-head {
+    spacing: 6px;
+    min-width: 300px;
+}
+
+.sysmon-sort {
+    font-size: 0.8em;
+    padding: 1px 8px;
+    border-radius: 9px;
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sysmon-sort:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sysmon-sort-active {
+    color: #ffffff;
+    background-color: rgba(98, 160, 234, 0.5);
+    border: 1px solid rgba(98, 160, 234, 0.9);
+}
+
+.sysmon-proc {
+    spacing: 8px;
+    min-width: 300px;
+}
+
+.sysmon-proc-name {
+    font-size: 0.9em;
+}
+
+/* 数字の列は幅を固定して縦に揃える。残りが名前の取り分になるので、
+ * ここを削るほど長いプロセス名が省略されずに済む */
+.sysmon-proc-pid {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.4);
+    font-feature-settings: "tnum";
+    text-align: right;
+    width: 46px;
+}
+
+.sysmon-proc-num {
+    font-size: 0.9em;
+    font-feature-settings: "tnum";
+    text-align: right;
+    width: 52px;
+}
+
+.sysmon-proc-num.sysmon-warn {
+    color: #f5c211;
+}
+
+.sysmon-proc-num.sysmon-crit {
+    color: #ff7b63;
+}
+
+/* 状態表示 ----------------------------------------------------------- */
+
+.sysmon-status {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.6);
+}
