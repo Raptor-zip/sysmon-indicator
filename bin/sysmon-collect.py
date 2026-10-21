@@ -338,6 +338,59 @@ class GpuSampler:
         name = name.strip()
         return name[:28] if name else None
 
+    def _processes(self):
+        """描画・計算の両プロセスを取得。未対応の値は None のまま残す。"""
+        try:
+            out = subprocess.run(
+                [self._smi, 'pmon', '-i', '0', '-c', '1', '-s', 'um'],
+                capture_output=True, text=True, timeout=4)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if out.returncode != 0:
+            return None
+
+        columns = None
+        rows = []
+        for line in out.stdout.splitlines():
+            if line.lstrip().startswith('#'):
+                header = line.lstrip()[1:].split()
+                if 'pid' in header and 'command' in header:
+                    columns = header
+                continue
+            if not columns or not line.strip():
+                continue
+            values = line.split(None, len(columns) - 1)
+            fields = dict(zip(columns, values))
+            try:
+                pid = int(fields.get('pid', '-'))
+            except ValueError:
+                continue
+            if pid <= 0:
+                continue
+
+            def number(key):
+                try:
+                    return float(fields.get(key, '-'))
+                except ValueError:
+                    return None
+
+            # pmon の command は短く切られるので /proc から名前を補完する。
+            name = (read_text('/proc/%d/comm' % pid) or
+                    fields.get('command', '?')).strip()
+            name = fix_utf8(name)
+            memory = number('fb')
+            rows.append({
+                'pid': pid,
+                'name': name,
+                'label': ProcSampler._refine_name(pid, name),
+                'gpu': number('sm'),
+                'vram': memory * 1024 * 1024 if memory is not None else None,
+            })
+        if columns is None:
+            return None
+        rows.sort(key=lambda r: (r['gpu'] or 0, r['vram'] or 0), reverse=True)
+        return rows[:TOP_N]
+
     def sample(self):
         if not self._dev or not self._smi:
             return None
@@ -372,9 +425,10 @@ class GpuSampler:
             'util': num(1),
             'mem_used': used * 1024 * 1024 if used is not None else None,
             'mem_total': total * 1024 * 1024 if total is not None else None,
-            'mem_pct': round(used / total * 100.0, 1) if used and total else None,
+            'mem_pct': round(used / total * 100.0, 1) if used is not None and total else None,
             'temp': num(4),
             'power': num(5),
+            'processes': self._processes(),
         }
 
 

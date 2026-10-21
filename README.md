@@ -1,15 +1,16 @@
 # Sysmon — GNOME Shell indicator
 
-A compressed btop in the GNOME top bar. The panel keeps it to two numbers and a
-sparkline of the last 8 CPU samples:
+A compressed btop in the GNOME top bar. The panel shows three compact percentages:
 
 ```
-                    ▁▂▅█▃▂▁▁ CPU 23%  MEM 41%
+                    CPU 23%  MEM 41%  GPU 12%
 ```
 
 Click it for the breakdown: per-core meters, memory and swap, disk and network
 throughput, temperatures and fans, the dGPU, and the six processes eating the most
-CPU (or memory — the header toggles).
+CPU, memory, or GPU (the header toggles). The GPU tab lists graphics and compute
+processes with their PID, GPU utilisation, and VRAM usage. Unsupported readings
+are shown as `--`, rather than zero.
 
 ```
  CPU（24 スレッド）                                          45.4%
@@ -65,7 +66,9 @@ suspended (D3cold). Polling `nvidia-smi` every 2 seconds would keep it awake pur
 for the sake of watching it. So the collector reads
 `/sys/bus/pci/drivers/nvidia/*/power/runtime_status` first and only queries
 `nvidia-smi` when the card is already `active`. While it is asleep the GPU row just
-says so.
+says so, and the panel shows `GPU 0%`. Unavailable readings show `GPU --%`.
+Active GPUs are also queried with `nvidia-smi pmon` for graphics and compute
+processes; unsupported process metrics remain unavailable.
 
 ## Requirements
 
@@ -95,7 +98,7 @@ Uninstall with `./install.sh uninstall`.
 
 ## What you get
 
-- **Panel**: `<sparkline> CPU <pct> MEM <pct>`
+- **Panel**: `CPU <pct> MEM <pct> GPU <pct>`
   - Yellow at 70%, bold red at 90%, each number coloured on its own
   - Dimmed when the cache stops updating — your cue that the collector died
 - **Menu**
@@ -105,7 +108,7 @@ Uninstall with `./install.sh uninstall`.
   - GPU: utilisation, VRAM, temperature, power — or `サスペンド中`
   - Disk read/write and network down/up, as rates over the last interval
   - Mounted filesystems: usage and free space
-  - Top 6 processes by CPU or by memory. Interpreted processes get the script name
+  - Top 6 processes by CPU, memory, or GPU (GPU utilisation / VRAM). Interpreted processes get the script name
     appended (`python3 foo.py`, `node cli.js`) so a screen of `node` rows still tells
     you something
   - Uptime, process and thread counts, last sample time
@@ -118,7 +121,6 @@ Everything worth changing is a constant at the top of a file.
 | What | Where |
 |---|---|
 | Sample interval | `--interval` in `systemd/sysmon.service` |
-| Sparkline width (0 hides it) | `SPARK_WIDTH` in `extension.js` |
 | Yellow / red thresholds | `WARN_PCT`, `CRIT_PCT` in `extension.js` |
 | Number of processes listed | `TOP_N` in `sysmon-collect.py` (and the loop count in `_buildMenu`) |
 | Panel position | the `addToStatusArea(..., 0, 'right')` call at the bottom of `extension.js` — `'center'` puts it next to the clock |

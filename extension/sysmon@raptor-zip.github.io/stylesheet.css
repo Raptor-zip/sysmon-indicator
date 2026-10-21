@@ -10,13 +10,6 @@
     font-feature-settings: "tnum";
 }
 
-.sysmon-panel-spark {
-    font-family: monospace;
-    font-size: 0.9em;
-    letter-spacing: -1px;
-    color: rgba(255, 255, 255, 0.75);
-}
-
 .sysmon-panel-label.sysmon-warn {
     color: #f5c211;
 }
@@ -26,8 +19,7 @@
     font-weight: bold;
 }
 
-.sysmon-panel-label.sysmon-stale,
-.sysmon-panel-spark.sysmon-stale {
+.sysmon-panel-label.sysmon-stale {
     color: rgba(255, 255, 255, 0.4);
     font-weight: normal;
 }

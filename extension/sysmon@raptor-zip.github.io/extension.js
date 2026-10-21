@@ -1,7 +1,7 @@
 /* Sysmon — GNOME Shell 42 用のシステムモニターインジケーター
  *
  * ~/.cache/sysmon/system.json（常駐する sysmon-collect が更新）を読んで、
- * トップバーに CPU / メモリの使用率を出す。クリックで btop を圧縮したような
+ * トップバーに CPU / メモリ / GPU の使用率を出す。クリックで btop を圧縮したような
  * 内訳（コア別・メモリ・I/O・温度・上位プロセス）を開く。
  *
  * このファイルは /proc を一切読まない。重い採取は全部コレクタ側に置いて、
@@ -30,13 +30,9 @@ const TICK_SECONDS = 5;
 const STALE_FACTOR = 6;
 const STALE_FLOOR_SECONDS = 15;
 
-// パネルのスパークラインに出すサンプル数（0 にすると非表示）
-const SPARK_WIDTH = 8;
-
 const WARN_PCT = 70;
 const CRIT_PCT = 90;
 
-const SPARK_CHARS = '▁▂▃▄▅▆▇█';
 const UNITS = ['B', 'K', 'M', 'G', 'T', 'P'];
 
 function decodeBytes(bytes) {
@@ -115,17 +111,6 @@ function severityClass(pct) {
     if (pct >= WARN_PCT)
         return 'sysmon-warn';
     return '';
-}
-
-function sparkline(values, width) {
-    const tail = (values || []).slice(-width);
-    while (tail.length < width)
-        tail.unshift(0);
-    const last = SPARK_CHARS.length - 1;
-    return tail.map(v => {
-        const ratio = isNum(v) ? Math.max(0, Math.min(100, v)) / 100 : 0;
-        return SPARK_CHARS[Math.round(ratio * last)];
-    }).join('');
 }
 
 /* 使用率 1 件ぶんの行：見出し + パーセント + バー + 補足 */
@@ -331,7 +316,7 @@ class ProcRow extends PopupMenu.PopupBaseMenuItem {
         this.add_child(box);
     }
 
-    update(proc) {
+    update(proc, gpu = false) {
         if (!proc) {
             this.visible = false;
             return;
@@ -339,11 +324,12 @@ class ProcRow extends PopupMenu.PopupBaseMenuItem {
         this.visible = true;
         this._name.text = proc.label || proc.name || '?';
         this._pid.text = String(proc.pid);
-        this._cpu.text = formatPct(proc.cpu, proc.cpu < 10 ? 1 : 0);
+        const pct = gpu ? proc.gpu : proc.cpu;
+        this._cpu.text = formatPct(pct, pct < 10 ? 1 : 0);
         // コア 1 個ぶんを超えたら色を付ける（btop と同じで 100% = 1 コア）
         this._cpu.style_class = `sysmon-proc-num ${severityClass(
-            isNum(proc.cpu) ? Math.min(100, proc.cpu) : 0)}`.trim();
-        this._mem.text = formatBytes(proc.rss);
+            isNum(pct) ? Math.min(100, pct) : 0)}`.trim();
+        this._mem.text = formatBytes(gpu ? proc.vram : proc.rss);
     }
 });
 
@@ -352,16 +338,12 @@ class SysmonIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.5, 'Sysmon', false);
 
-        this._sortByMem = false;
+        this._sortBy = 'cpu';
         this._lastSampledAt = null;
 
         const panel = new St.BoxLayout({
             style_class: 'sysmon-panel',
             y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._spark = new St.Label({
-            y_align: Clutter.ActorAlign.CENTER,
-            style_class: 'sysmon-panel-spark',
         });
         this._cpuLabel = new St.Label({
             y_align: Clutter.ActorAlign.CENTER,
@@ -371,10 +353,13 @@ class SysmonIndicator extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'sysmon-panel-label',
         });
-        this._spark.visible = SPARK_WIDTH > 0;
-        panel.add_child(this._spark);
+        this._gpuLabel = new St.Label({
+            y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'sysmon-panel-label',
+        });
         panel.add_child(this._cpuLabel);
         panel.add_child(this._memLabel);
+        panel.add_child(this._gpuLabel);
         this.add_child(panel);
 
         this._buildMenu();
@@ -414,6 +399,11 @@ class SysmonIndicator extends PanelMenu.Button {
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         this.menu.addMenuItem(this._buildProcHeader());
+        this._procMessage = new PopupMenu.PopupMenuItem('', {
+            reactive: false, can_focus: false, style_class: 'sysmon-status',
+        });
+        this._procMessage.visible = false;
+        this.menu.addMenuItem(this._procMessage);
         this._procRows = [];
         for (let i = 0; i < 6; i++) {
             const row = new ProcRow();
@@ -452,19 +442,21 @@ class SysmonIndicator extends PanelMenu.Button {
         });
         const box = new St.BoxLayout({ x_expand: true, style_class: 'sysmon-proc-head' });
 
-        box.add_child(new St.Label({
+        this._procTitle = new St.Label({
             text: '上位プロセス',
             x_expand: true,
             style_class: 'sysmon-row-title',
-        }));
+        });
+        box.add_child(this._procTitle);
 
         this._sortButtons = [
-            { key: false, button: new St.Button({ label: 'CPU', style_class: 'sysmon-sort' }) },
-            { key: true, button: new St.Button({ label: 'メモリ', style_class: 'sysmon-sort' }) },
+            { key: 'cpu', button: new St.Button({ label: 'CPU', style_class: 'sysmon-sort' }) },
+            { key: 'mem', button: new St.Button({ label: 'メモリ', style_class: 'sysmon-sort' }) },
+            { key: 'gpu', button: new St.Button({ label: 'GPU', style_class: 'sysmon-sort' }) },
         ];
         this._sortButtons.forEach(entry => {
             entry.button.connect('clicked', () => {
-                this._sortByMem = entry.key;
+                this._sortBy = entry.key;
                 this._render(true);
             });
             box.add_child(entry.button);
@@ -476,7 +468,7 @@ class SysmonIndicator extends PanelMenu.Button {
 
     _syncSortButtons() {
         this._sortButtons.forEach(entry => {
-            entry.button.style_class = entry.key === this._sortByMem
+            entry.button.style_class = entry.key === this._sortBy
                 ? 'sysmon-sort sysmon-sort-active' : 'sysmon-sort';
         });
     }
@@ -526,16 +518,19 @@ class SysmonIndicator extends PanelMenu.Button {
         const cpu = (data && data.cpu) || {};
         const mem = (data && data.mem) || {};
 
-        this._spark.text = SPARK_WIDTH > 0 ? sparkline(cpu.history, SPARK_WIDTH) : '';
+        const gpu = (data && data.gpu) || {};
+        const gpuPct = gpu.state === 'suspended' ? 0 : gpu.util;
         this._cpuLabel.text = `CPU ${formatPct(cpu.pct)}`;
         this._memLabel.text = `MEM ${formatPct(mem.pct)}`;
+        this._gpuLabel.text = `GPU ${formatPct(gpuPct)}`;
 
         const dim = stale ? ' sysmon-stale' : '';
         this._cpuLabel.style_class =
             `sysmon-panel-label ${severityClass(cpu.pct)}${dim}`.trim();
         this._memLabel.style_class =
             `sysmon-panel-label ${severityClass(mem.pct)}${dim}`.trim();
-        this._spark.style_class = `sysmon-panel-spark${dim}`.trim();
+        this._gpuLabel.style_class =
+            `sysmon-panel-label ${severityClass(gpuPct)}${dim}`.trim();
     }
 
     _renderCpu(data) {
@@ -626,8 +621,27 @@ class SysmonIndicator extends PanelMenu.Button {
 
     _renderProcs(data) {
         const procs = data.procs || {};
-        const list = (this._sortByMem ? procs.by_mem : procs.by_cpu) || [];
-        this._procRows.forEach((row, i) => row.update(list[i]));
+        const gpu = data.gpu || {};
+        const showGpu = this._sortBy === 'gpu';
+        const list = (showGpu ? gpu.processes :
+            (this._sortBy === 'mem' ? procs.by_mem : procs.by_cpu)) || [];
+        this._procTitle.text = showGpu ? 'GPUプロセス' : '上位プロセス';
+        let message = '';
+        if (showGpu) {
+            if (!gpu.present)
+                message = '対応するGPUがありません';
+            else if (gpu.state === 'suspended')
+                message = 'GPUはサスペンド中です';
+            else if (gpu.state !== 'active' || !Array.isArray(gpu.processes))
+                message = 'GPUプロセス情報を取得できません';
+            else if (!list.length)
+                message = 'GPUを使用しているプロセスはありません';
+            else
+                message = 'PID / GPU% / VRAM（--: 取得不可）';
+        }
+        this._procMessage.label.text = message;
+        this._procMessage.visible = !!message;
+        this._procRows.forEach((row, i) => row.update(list[i], showGpu));
         this._syncSortButtons();
     }
 
