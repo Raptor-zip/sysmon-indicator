@@ -83,6 +83,16 @@ def read_int(path):
         return None
 
 
+def read_proc_cwd(pid):
+    """上位プロセスだけの作業ディレクトリ。終了・権限不足・削除済みは未取得。"""
+    try:
+        link = '/proc/%d/cwd' % pid
+        path = os.readlink(link)
+        return path if os.path.isabs(path) and os.stat(link).st_nlink > 0 else None
+    except OSError:
+        return None
+
+
 class CpuSampler:
     """/proc/stat の累積カウンタから全体・コア別の使用率を出す。"""
 
@@ -237,6 +247,7 @@ class ProcSampler:
             if 'label' not in row:
                 row['name'] = fix_utf8(row['name'])
                 row['label'] = self._refine_name(row['pid'], row['name'])
+                row['cwd'] = read_proc_cwd(row['pid'])
             row['cpu'] = round(row['cpu'], 1)
 
         return {
@@ -389,7 +400,10 @@ class GpuSampler:
         if columns is None:
             return None
         rows.sort(key=lambda r: (r['gpu'] or 0, r['vram'] or 0), reverse=True)
-        return rows[:TOP_N]
+        rows = rows[:TOP_N]
+        for row in rows:
+            row['cwd'] = read_proc_cwd(row['pid'])
+        return rows
 
     def sample(self):
         if not self._dev or not self._smi:

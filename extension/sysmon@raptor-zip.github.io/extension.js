@@ -290,7 +290,27 @@ class InfoRow extends PopupMenu.PopupBaseMenuItem {
 const ProcRow = GObject.registerClass(
 class ProcRow extends PopupMenu.PopupBaseMenuItem {
     _init() {
-        super._init({ reactive: false, can_focus: false });
+        super._init({ reactive: true, can_focus: true });
+
+        this._cwd = null;
+        this._tooltipId = 0;
+        this._tooltip = new St.Label({
+            style_class: 'sysmon-proc-tooltip',
+            reactive: false,
+            visible: false,
+        });
+        this._tooltip.clutter_text.line_wrap = true;
+        this._tooltip.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+        Main.uiGroup.add_child(this._tooltip);
+        this.connect('notify::hover', () => this._syncTooltip());
+        this.connect('key-focus-in', () => this._syncTooltip());
+        this.connect('key-focus-out', () => this._syncTooltip());
+        this.connect('notify::mapped', () => this._syncTooltip());
+        this.connect('activate', () => this._openDirectory());
+        this.connect('destroy', () => {
+            this._hideTooltip();
+            this._tooltip.destroy();
+        });
 
         const box = new St.BoxLayout({ x_expand: true, style_class: 'sysmon-proc' });
 
@@ -308,13 +328,80 @@ class ProcRow extends PopupMenu.PopupBaseMenuItem {
         this.add_child(box);
     }
 
+    _hideTooltip() {
+        if (this._tooltipId) {
+            GLib.source_remove(this._tooltipId);
+            this._tooltipId = 0;
+        }
+        this._tooltip.hide();
+    }
+
+    _syncTooltip() {
+        if (!this.mapped || !(this.hover || this.has_key_focus())) {
+            this._hideTooltip();
+            return;
+        }
+        if (this._tooltip.visible) {
+            this._showTooltip();
+            return;
+        }
+        if (!this._tooltipId) {
+            this._tooltipId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+                this._tooltipId = 0;
+                this._showTooltip();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    _showTooltip() {
+        this._tooltip.text = this._cwd
+            ? `作業ディレクトリ: ${this._cwd}\nクリックでフォルダーを開く`
+            : '作業ディレクトリを取得できません（終了済み・権限不足など）';
+        const monitor = Main.layoutManager.findMonitorForActor(this);
+        if (!monitor)
+            return;
+        this._tooltip.style = `max-width: ${Math.max(1, monitor.width - 32)}px;`;
+        const [x, y] = this.get_transformed_position();
+        const [, rowHeight] = this.get_transformed_size();
+        const [, width] = this._tooltip.get_preferred_width(-1);
+        const [, height] = this._tooltip.get_preferred_height(width);
+        const below = y + rowHeight + 6;
+        this._tooltip.set_position(
+            Math.max(monitor.x, Math.min(x, monitor.x + monitor.width - width)),
+            Math.max(monitor.y, below + height <= monitor.y + monitor.height
+                ? below : y - height - 6));
+        this._tooltip.show();
+    }
+
+    _openDirectory() {
+        this._hideTooltip();
+        if (!this._cwd)
+            return;
+        const file = Gio.File.new_for_path(this._cwd);
+        Gio.AppInfo.launch_default_for_uri_async(file.get_uri(),
+            global.create_app_launch_context(0, -1), null, (source, result) => {
+                try {
+                    Gio.AppInfo.launch_default_for_uri_finish(result);
+                } catch (e) {
+                    logError(e, 'sysmon: フォルダーを開けません');
+                    Main.notify('Sysmon', '作業ディレクトリを開けません。削除済み、またはアクセスできない可能性があります。');
+                }
+            });
+    }
+
     update(proc, gpu = false) {
         if (!proc) {
+            this._cwd = null;
+            this._hideTooltip();
             this.visible = false;
             return;
         }
         this.visible = true;
+        this._cwd = typeof proc.cwd === 'string' && GLib.path_is_absolute(proc.cwd)
+            ? proc.cwd : null;
         this._name.text = proc.label || proc.name || '?';
+        this.accessible_name = `${this._name.text} (PID ${proc.pid}) — ${this._cwd || '作業ディレクトリ未取得'}`;
         this._pid.text = String(proc.pid);
         const pct = gpu ? proc.gpu : proc.cpu;
         this._cpu.text = formatPct(pct, pct < 10 ? 1 : 0);
@@ -322,6 +409,7 @@ class ProcRow extends PopupMenu.PopupBaseMenuItem {
         this._cpu.style_class = `sysmon-proc-num ${severityClass(
             isNum(pct) ? Math.min(100, pct) : 0)}`.trim();
         this._mem.text = formatBytes(gpu ? proc.vram : proc.rss);
+        this._syncTooltip();
     }
 });
 

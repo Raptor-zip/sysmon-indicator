@@ -12,6 +12,14 @@ CPU, memory, or GPU (the header toggles). The GPU tab lists graphics and compute
 processes with their PID, GPU utilisation, and VRAM usage. Unsupported readings
 are shown as `--`, rather than zero.
 
+Hover over a process row (or focus it with the keyboard) to see its full working
+directory, then click or press Enter to open that folder in the default file
+manager. This works in the CPU, memory, and GPU lists. The directory is the
+process's current working directory, which may differ from its source repository
+or executable location. Exited processes, inaccessible directories, and deleted
+directories are shown as unavailable. Directory information is sampled only for
+the listed processes, alongside their names.
+
 ```
  CPU（24 スレッド）                                          45.4%
  ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░

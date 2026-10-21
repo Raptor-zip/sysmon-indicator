@@ -153,6 +153,15 @@
     font-size: 0.9em;
 }
 
+.sysmon-proc-tooltip {
+    color: #ffffff;
+    background-color: rgba(24, 24, 24, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.9em;
+}
+
 /* 数字の列は幅を固定して縦に揃える。残りが名前の取り分になるので、
  * ここを削るほど長いプロセス名が省略されずに済む */
 .sysmon-proc-pid {
