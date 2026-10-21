@@ -200,25 +200,18 @@ class CoreGrid extends PopupMenu.PopupBaseMenuItem {
         });
         this.add_child(this._row);
         this._bars = [];
-        this._barWidth = 0;
     }
 
-    _resize(count, width) {
+    _resize(count) {
         while (this._bars.length > count)
             this._bars.pop().track.destroy();
-
-        if (width !== this._barWidth) {
-            this._barWidth = width;
-            this._bars.forEach(bar => {
-                bar.track.style = `width: ${width}px;`;
-            });
-        }
 
         while (this._bars.length < count) {
             const track = new St.Widget({
                 style_class: 'sysmon-core-track',
                 layout_manager: new Clutter.BinLayout(),
-                style: `width: ${this._barWidth}px;`,
+                x_expand: true,
+                x_align: Clutter.ActorAlign.FILL,
             });
             // 下端から伸ばすために、上に伸縮するだけの空き箱を積む
             const column = new St.BoxLayout({
@@ -226,6 +219,7 @@ class CoreGrid extends PopupMenu.PopupBaseMenuItem {
                 x_expand: true,
                 y_expand: true,
                 y_align: Clutter.ActorAlign.FILL,
+                x_align: Clutter.ActorAlign.FILL,
             });
             column.add_child(new St.Widget({ y_expand: true }));
             const fill = new St.Widget({
@@ -241,11 +235,9 @@ class CoreGrid extends PopupMenu.PopupBaseMenuItem {
 
     update(perCore) {
         const values = perCore || [];
-        // コア数が多いマシンでもメニュー幅（300px）に収まるよう棒を細くする
-        const width = values.length > 48 ? 3
-            : values.length > 32 ? 4
-            : values.length > 16 ? 6 : 10;
-        this._resize(values.length, width);
+        // 全トラックの自然幅を同じに保ち、親の余白を均等に分ける。
+        // メニューの実際の幅と表示倍率に追従し、固定 px 幅は使わない。
+        this._resize(values.length);
         // トラックの高さは stylesheet.css の 26px に合わせる
         values.forEach((pct, i) => {
             const ratio = isNum(pct) ? Math.max(0, Math.min(100, pct)) : 0;
