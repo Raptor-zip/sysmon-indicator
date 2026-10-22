@@ -371,6 +371,8 @@ class ProcRow extends PopupMenu.PopupBaseMenuItem {
             Math.max(monitor.x, Math.min(x, monitor.x + monitor.width - width)),
             Math.max(monitor.y, below + height <= monitor.y + monitor.height
                 ? below : y - height - 6));
+        // GNOME はメニューを開くたびに最前面へ移すため、表示時にその上へ戻す。
+        Main.uiGroup.set_child_above_sibling(this._tooltip, null);
         this._tooltip.show();
     }
 
