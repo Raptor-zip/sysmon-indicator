@@ -47,9 +47,20 @@ Installed:
   collector : $BIN_DIR/sysmon-collect
   service   : $UNIT_DIR/sysmon.service (samples every 2s)
 
-To activate:
-  1) Restart GNOME Shell: Alt+F2 -> r -> Enter  (X11 only; on Wayland, log out and back in)
-  2) gnome-extensions enable $UUID
+インストールが完了しました。
+トップバーに表示するには、続けて次の2つの操作を行ってください。
+
+  1. GNOME Shellを再読み込みします。
+     X11:     Alt+F2を押し、rと入力してEnterを押します。
+     Wayland: 一度ログアウトし、再ログインして端末を開き直します。
+
+  2. 再読み込み後、端末で次の1行を実行します。
+     （「2.」は手順番号なので入力しません）
+
+     gnome-extensions enable $UUID
+
+成功しても通常は何も表示されません。
+トップバーにCPU、MEM、GPUが表示されたら完了です。
 EOF
 }
 

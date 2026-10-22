@@ -89,7 +89,11 @@ processes; unsupported process metrics remain unavailable.
 Optional, used when present: `nvidia-smi` (dGPU), `btop` (the "btop を開く" item),
 `coretemp`/`k10temp` (CPU temperature), `thinkpad_acpi` (fan RPM).
 
-## Install
+## インストール
+
+### 1. ダウンロードしてインストールする
+
+「端末」アプリを開き、次の3行を上から順に実行します。
 
 ```bash
 git clone https://github.com/Raptor-zip/sysmon-indicator.git
@@ -97,12 +101,49 @@ cd sysmon-indicator
 ./install.sh
 ```
 
-Then activate it:
+`Installed:` と表示されたら、ファイルの配置とデータ収集サービスの起動は完了です。
+インジケーターをトップバーに表示するには、続けて次の2つの操作を行います。
 
-1. Restart GNOME Shell — `Alt+F2` → `r` → `Enter` (X11 only; on Wayland, log out and back in)
-2. `gnome-extensions enable sysmon@raptor-zip.github.io`
+### 2. GNOME Shellを再読み込みする
 
-Uninstall with `./install.sh uninstall`.
+- **X11の場合:** `Alt+F2`を押し、`r`と入力して`Enter`を押します。一瞬画面が
+  点滅することがあります。
+- **Waylandの場合:** システムメニューから一度ログアウトし、再度ログインします。
+  ログイン後に「端末」アプリをもう一度開いてください。
+
+X11とWaylandのどちらを使っているか分からない場合は、端末で次を実行します。
+
+```bash
+echo "$XDG_SESSION_TYPE"
+```
+
+`x11`と表示されたらX11、`wayland`と表示されたらWaylandです。
+
+### 3. 拡張機能を有効にする
+
+GNOME Shellの再読み込み後、端末で次の1行を実行します。
+
+```bash
+gnome-extensions enable sysmon@raptor-zip.github.io
+```
+
+インストーラーに表示される`2.`や`2)`は手順番号なので、コマンドには含めません。
+成功しても端末には通常何も表示されません。トップバーに`CPU`、`MEM`、`GPU`が
+表示されれば完了です。
+
+「拡張機能が存在しない」というエラーが出た場合は、手順2を行ってからもう一度
+実行してください。有効になっているか確認するには、次を実行します。
+
+```bash
+gnome-extensions list --enabled | grep -F sysmon@raptor-zip.github.io
+```
+
+アンインストールする場合は、ダウンロードした`sysmon-indicator`ディレクトリに
+移動して次を実行します。
+
+```bash
+./install.sh uninstall
+```
 
 ## What you get
 
