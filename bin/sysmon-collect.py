@@ -332,9 +332,15 @@ class GpuSampler:
     QUERY = ('name,utilization.gpu,memory.used,memory.total,'
              'temperature.gpu,power.draw')
 
+    # pmon は 1 秒間計測してから返すので、毎サンプルだと採取ループが遅れる
+    PROC_SECONDS = 5.0
+
     def __init__(self):
         self._smi = shutil.which('nvidia-smi')
-        devices = sorted(glob.glob('/sys/bus/pci/drivers/nvidia/0000:*'))
+        self._procs_at = None
+        self._procs = None
+        # PCI ドメインは 0000 とは限らない（DGX Spark の GB10 は 000f:01:00.0）
+        devices = sorted(glob.glob('/sys/bus/pci/drivers/nvidia/[0-9a-f]*:*'))
         self._dev = devices[0] if devices else None
 
     @staticmethod
@@ -405,6 +411,13 @@ class GpuSampler:
             row['cwd'] = read_proc_cwd(row['pid'])
         return rows
 
+    def _cached_processes(self):
+        now = time.monotonic()
+        if self._procs_at is None or now - self._procs_at >= self.PROC_SECONDS:
+            self._procs_at = now
+            self._procs = self._processes()
+        return self._procs
+
     def sample(self):
         if not self._dev or not self._smi:
             return None
@@ -442,7 +455,7 @@ class GpuSampler:
             'mem_pct': round(used / total * 100.0, 1) if used is not None and total else None,
             'temp': num(4),
             'power': num(5),
-            'processes': self._processes(),
+            'processes': self._cached_processes(),
         }
 
 

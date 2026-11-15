@@ -22,6 +22,21 @@ class GpuTests(unittest.TestCase):
                 patch.object(collector, 'read_text', return_value=None):
             return self.gpu._processes()
 
+    def test_device_in_non_zero_pci_domain(self):
+        found = ['/sys/bus/pci/drivers/nvidia/000f:01:00.0']
+        with patch.object(collector.glob, 'glob', return_value=found) as glob_mock:
+            gpu = collector.GpuSampler()
+        self.assertEqual(gpu._dev, found[0])
+        self.assertNotIn('0000:', glob_mock.call_args[0][0])
+
+    def test_process_list_is_refreshed_every_few_seconds(self):
+        with patch.object(self.gpu, '_processes', side_effect=[['a'], ['b']]) as procs, \
+                patch.object(collector.time, 'monotonic', side_effect=[100.0, 102.0, 105.0]):
+            self.assertEqual(self.gpu._cached_processes(), ['a'])
+            self.assertEqual(self.gpu._cached_processes(), ['a'])
+            self.assertEqual(self.gpu._cached_processes(), ['b'])
+        self.assertEqual(procs.call_count, 2)
+
     def test_graphics_compute_and_unavailable_metrics(self):
         rows = self.processes('''# gpu pid type sm mem enc dec jpg ofa fb ccpm command
 # Idx # C/G % % % % % % MB MB name
