@@ -48,6 +48,7 @@ the listed processes, alongside their names.
 | Path | Role |
 |---|---|
 | `bin/sysmon-collect.py` | Samples `/proc` and `/sys` every 2s and writes the cache |
+| `bin/build-extension.py` | Turns the extension into an ES module for GNOME 45+ at install time |
 | `systemd/sysmon.service` | Keeps the collector running |
 | `extension/sysmon@raptor-zip.github.io/` | Reads the cache and draws the indicator |
 | `~/.cache/sysmon/system.json` | The cache that connects the two |
@@ -76,13 +77,19 @@ for the sake of watching it. So the collector reads
 `nvidia-smi` when the card is already `active`. While it is asleep the GPU row just
 says so, and the panel shows `GPU 0%`. Unavailable readings show `GPU --%`.
 Active GPUs are also queried with `nvidia-smi pmon` for graphics and compute
-processes; unsupported process metrics remain unavailable.
+processes; unsupported process metrics remain unavailable. `pmon` measures for a
+full second before answering, so the process list is refreshed every 5 s.
+
+GPUs that never runtime-suspend, such as the integrated GB10 in a DGX Spark, are
+always `active` and are queried every sample. The GB10 shares system memory, so
+`nvidia-smi` reports no VRAM total and the VRAM figures show `--`.
 
 ## Requirements
 
-- GNOME Shell 42 (tested on Ubuntu 22.04, X11).
-  43 and 44 will most likely work — add the version to `shell-version` in
-  `metadata.json` and try it. GNOME 45+ needs an ESM port and is not supported yet.
+- GNOME Shell 42, 45, or 46. Used on Ubuntu 22.04 (GNOME 42, X11, x86_64) and
+  Ubuntu 24.04 on a DGX Spark (GNOME 46, X11, aarch64).
+  The source is written for GNOME 42; for 45+ `install.sh` generates the ES module
+  entry point. 43 and 44 are not accepted by the installer.
 - Python 3.8+ (standard library only)
 - Linux. Everything comes from `/proc` and `/sys`; no root, no extra packages.
 
@@ -101,15 +108,14 @@ cd sysmon-indicator
 ./install.sh
 ```
 
-`Installed:` と表示されたら、ファイルの配置とデータ収集サービスの起動は完了です。
-インジケーターをトップバーに表示するには、続けて次の2つの操作を行います。
+`Installed:` と表示されたら、ファイルの配置、データ収集サービスの起動、
+拡張機能の有効化の登録は完了です。
 
 ### 2. GNOME Shellを再読み込みする
 
 - **X11の場合:** `Alt+F2`を押し、`r`と入力して`Enter`を押します。一瞬画面が
   点滅することがあります。
 - **Waylandの場合:** システムメニューから一度ログアウトし、再度ログインします。
-  ログイン後に「端末」アプリをもう一度開いてください。
 
 X11とWaylandのどちらを使っているか分からない場合は、端末で次を実行します。
 
@@ -119,24 +125,27 @@ echo "$XDG_SESSION_TYPE"
 
 `x11`と表示されたらX11、`wayland`と表示されたらWaylandです。
 
-### 3. 拡張機能を有効にする
+トップバーに`CPU`、`MEM`、`GPU`が表示されれば完了です。
 
-GNOME Shellの再読み込み後、端末で次の1行を実行します。
+### 表示されない場合
+
+再読み込みの後、端末で次の1行を実行します。成功しても通常は何も表示されません。
 
 ```bash
 gnome-extensions enable sysmon@raptor-zip.github.io
 ```
 
-インストーラーに表示される`2.`や`2)`は手順番号なので、コマンドには含めません。
-成功しても端末には通常何も表示されません。トップバーに`CPU`、`MEM`、`GPU`が
-表示されれば完了です。
-
-「拡張機能が存在しない」というエラーが出た場合は、手順2を行ってからもう一度
-実行してください。有効になっているか確認するには、次を実行します。
+有効になっているか確認するには、次を実行します。
 
 ```bash
 gnome-extensions list --enabled | grep -F sysmon@raptor-zip.github.io
 ```
+
+### 更新・アンインストール
+
+更新するときは、`sysmon-indicator`ディレクトリで`git pull`の後に`./install.sh`を
+もう一度実行し、GNOME Shellを再読み込みします。データ収集サービスも新しい版で
+再起動されます。
 
 アンインストールする場合は、ダウンロードした`sysmon-indicator`ディレクトリに
 移動して次を実行します。
@@ -171,8 +180,8 @@ Everything worth changing is a constant at the top of a file.
 |---|---|
 | Sample interval | `--interval` in `systemd/sysmon.service` |
 | Yellow / red thresholds | `WARN_PCT`, `CRIT_PCT` in `extension.js` |
-| Number of processes listed | `TOP_N` in `sysmon-collect.py` (and the loop count in `_buildMenu`) |
-| Panel position | the `addToStatusArea(..., 0, 'right')` call at the bottom of `extension.js` — `'center'` puts it next to the clock |
+| Number of processes listed | `TOP_N` in `sysmon-collect.py` and `PROC_ROWS` in `extension.js` (keep them equal) |
+| Panel position | `PANEL_BOX` / `PANEL_INDEX` in `extension.js` — `'center'` puts it next to the clock |
 
 After editing, re-run `./install.sh` and restart GNOME Shell.
 
@@ -193,6 +202,16 @@ needs the `thinkpad_acpi` module.
 
 **Per-core strip is missing cores.** It is drawn from `/proc/stat`, so it shows
 logical CPUs (SMT threads), which is why a 24-thread machine shows 24 bars.
+
+## Development
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+The tests cover the collector (GPU parsing, process directories) and the GNOME 42 /
+45+ extension build. To see a change on the desktop, run `./install.sh` and reload
+GNOME Shell; `journalctl --user -f -o cat /usr/bin/gnome-shell` shows extension errors.
 
 ## License
 

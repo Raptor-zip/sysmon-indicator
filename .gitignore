@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 *.tmp
+# Screenshots from visual reviews; regenerate instead of committing them
+artifacts/
