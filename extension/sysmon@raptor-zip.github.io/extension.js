@@ -1,4 +1,4 @@
-/* Sysmon — GNOME Shell 42 用のシステムモニターインジケーター
+/* Sysmon — GNOME Shell 用のシステムモニターインジケーター
  *
  * ~/.cache/sysmon/system.json（常駐する sysmon-collect が更新）を読んで、
  * トップバーに CPU / メモリ / GPU の使用率を出す。クリックで btop を圧縮したような
@@ -6,6 +6,10 @@
  *
  * このファイルは /proc を一切読まない。重い採取は全部コレクタ側に置いて、
  * シェルのメインループではキャッシュを 1 つ読むだけにしてある。
+ *
+ * このファイルは GNOME 42 の旧 import 形式で書いてある。GNOME 45 以降は
+ * install.sh が bin/build-extension.py で先頭の import と末尾の入口だけを
+ * ES モジュール形式に差し替えてから配置する。
  */
 'use strict';
 
@@ -29,6 +33,14 @@ const TICK_SECONDS = 5;
 // 採取間隔の何倍まで待って「古い」と判断するか
 const STALE_FACTOR = 6;
 const STALE_FLOOR_SECONDS = 15;
+
+// パネル上の位置。右側の枠の左端（システムメニューの左隣）。
+// 時計の隣に置きたいなら PANEL_BOX を 'center' に変える
+const PANEL_BOX = 'right';
+const PANEL_INDEX = 0;
+
+// 上位プロセスの行数。sysmon-collect.py の TOP_N と揃える
+const PROC_ROWS = 6;
 
 const WARN_PCT = 70;
 const CRIT_PCT = 90;
@@ -487,7 +499,7 @@ class SysmonIndicator extends PanelMenu.Button {
         this._procMessage.visible = false;
         this.menu.addMenuItem(this._procMessage);
         this._procRows = [];
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < PROC_ROWS; i++) {
             const row = new ProcRow();
             this.menu.addMenuItem(row);
             this._procRows.push(row);
@@ -794,9 +806,7 @@ class Extension {
 
     enable() {
         this._indicator = new SysmonIndicator();
-        // 右側の枠の左端（システムメニューの左隣）に置く。
-        // 時計の右に並べたいなら 'right' を 'center' に変える
-        Main.panel.addToStatusArea(this._uuid, this._indicator, 0, 'right');
+        Main.panel.addToStatusArea(this._uuid, this._indicator, PANEL_INDEX, PANEL_BOX);
     }
 
     disable() {
